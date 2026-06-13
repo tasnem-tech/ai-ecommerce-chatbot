@@ -2,97 +2,124 @@
 
 import { useState } from "react";
 
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
 interface ChatWidgetProps {
   onCartUpdate?: () => void;
 }
 
 export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Hi! Ask me to show products, view cart, or place order.",
+    },
+  ]);
+
+  async function send(text?: string) {
+    const msg = (text || input).trim();
+    if (!msg) return;
+
+    setMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+
+      const data = await res.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.reply || "Sorry, I could not understand.",
+        },
+      ]);
+
+      onCartUpdate?.();
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Something went wrong. Try again." },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
       <button
         onClick={() => setOpen(!open)}
-        style={{
-          position: "fixed",
-          bottom: 90,
-          right: 24,
-          zIndex: 9999,
-          width: 64,
-          height: 64,
-          borderRadius: "50%",
-          border: "none",
-          background: "#2563eb",
-          color: "white",
-          fontSize: 28,
-          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-          cursor: "pointer",
-        }}
+        style={floatingButton}
       >
-        {open ? "×" : "💬"}
+        {open ? "✕" : "💬"}
       </button>
 
       {open && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 170,
-            right: 24,
-            zIndex: 9999,
-            width: 380,
-            height: 520,
-            background: "white",
-            borderRadius: 24,
-            boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-            overflow: "hidden",
-            border: "1px solid #e5e7eb",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              background: "linear-gradient(135deg, #2563eb, #0f172a)",
-              color: "white",
-              padding: 18,
-            }}
-          >
+        <div style={panel}>
+          <div style={header}>
             <h3 style={{ margin: 0 }}>🤖 ThreadBot</h3>
             <p style={{ margin: "4px 0 0", fontSize: 13 }}>
               Your AI shopping assistant
             </p>
           </div>
 
-          <div style={{ flex: 1, padding: 18 }}>
-            <div
-              style={{
-                background: "#f1f5f9",
-                padding: 14,
-                borderRadius: 16,
-                marginBottom: 14,
-              }}
-            >
-              Hi! Ask me to show products, view cart, or place order.
-            </div>
+          <div style={messagesBox}>
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  ...bubble,
+                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                  background: m.role === "user" ? "#2563eb" : "#f1f5f9",
+                  color: m.role === "user" ? "white" : "#0f172a",
+                }}
+              >
+                {m.content}
+              </div>
+            ))}
 
-            <button style={btn} onClick={onCartUpdate}>
-              View my cart
-            </button>
-            <button style={btn}>Show me t-shirts</button>
-            <button style={btn}>Show me pants</button>
-            <button style={btn}>Place my order</button>
+            {loading && <div style={bubble}>Typing...</div>}
           </div>
 
-          <div style={{ padding: 14, borderTop: "1px solid #e5e7eb" }}>
+          <div style={quickButtons}>
+            <button style={btn} onClick={() => send("View my cart")}>
+              View cart
+            </button>
+            <button style={btn} onClick={() => send("Show me t-shirts")}>
+              T-Shirts
+            </button>
+            <button style={btn} onClick={() => send("Show me pants")}>
+              Pants
+            </button>
+            <button style={btn} onClick={() => send("Place my order")}>
+              Order
+            </button>
+          </div>
+
+          <div style={inputBox}>
             <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder="Ask me anything..."
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 14,
-                border: "1px solid #cbd5e1",
-              }}
+              style={inputStyle}
             />
+            <button style={sendBtn} onClick={() => send()}>
+              Send
+            </button>
           </div>
         </div>
       )}
@@ -100,13 +127,93 @@ export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
   );
 }
 
-const btn = {
-  display: "block",
-  width: "100%",
-  marginBottom: 10,
-  padding: 12,
-  borderRadius: 14,
-border: "1px solid #cbd5e1",
+const floatingButton = {
+  position: "fixed" as const,
+  bottom: 24,
+  right: 24,
+  width: 64,
+  height: 64,
+  borderRadius: "50%",
+  border: "none",
+  background: "#2563eb",
+  color: "white",
+  fontSize: 28,
+  cursor: "pointer",
+  zIndex: 9999,
+  boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+};
+
+const panel = {
+  position: "fixed" as const,
+  bottom: 100,
+  right: 24,
+  width: 390,
+  height: 560,
   background: "white",
+  borderRadius: 22,
+  boxShadow: "0 20px 45px rgba(0,0,0,0.25)",
+  overflow: "hidden",
+  zIndex: 9999,
+  display: "flex",
+  flexDirection: "column" as const,
+};
+
+const header = {
+  background: "linear-gradient(135deg, #2563eb, #0f172a)",
+  color: "white",
+  padding: 18,
+};
+
+const messagesBox = {
+  flex: 1,
+  padding: 16,
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: 10,
+  overflowY: "auto" as const,
+};
+
+const bubble = {
+  maxWidth: "85%",
+  padding: 12,
+  borderRadius: 16,
+  fontSize: 14,
+};
+
+const quickButtons = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 8,
+  padding: 12,
+};
+
+const btn = {
+  padding: 10,
+  borderRadius: 12,
+  border: "1px solid #cbd5e1",
+  background: "white",
+  cursor: "pointer",
+};
+
+const inputBox = {
+  display: "flex",
+  gap: 8,
+  padding: 12,
+  borderTop: "1px solid #e5e7eb",
+};
+
+const inputStyle = {
+  flex: 1,
+  padding: 12,
+  borderRadius: 12,
+border: "1px solid #cbd5e1",
+};
+
+const sendBtn = {
+  padding: "0 14px",
+  borderRadius: 12,
+  border: "none",
+  background: "#2563eb",
+  color: "white",
   cursor: "pointer",
 };
