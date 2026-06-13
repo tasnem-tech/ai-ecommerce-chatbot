@@ -24,7 +24,7 @@ export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
 
   async function send(text?: string) {
     const msg = (text || input).trim();
-    if (!msg) return;
+    if (!msg || loading) return;
 
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setInput("");
@@ -39,11 +39,34 @@ export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
 
       const data = await res.json();
 
+      let replyText = data.reply || "Sorry, I could not understand.";
+
+      if (data.products && data.products.length > 0) {
+        replyText +=
+          "\n\n" +
+          data.products
+            .map((p: any) => `• ${p.name} - £${p.price}`)
+            .join("\n");
+      }
+
+      if (data.cart && data.cart.length > 0) {
+        replyText +=
+          "\n\nCart:\n" +
+          data.cart
+            .map(
+              (item: any) =>
+                `• ${item.name} size ${item.size} x${item.quantity} - £${(
+                  item.price * item.quantity
+                ).toFixed(2)}`
+            )
+            .join("\n");
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: data.reply || "Sorry, I could not understand.",
+          content: replyText,
         },
       ]);
 
@@ -60,10 +83,7 @@ export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(!open)}
-        style={floatingButton}
-      >
+      <button onClick={() => setOpen(!open)} style={floatingButton}>
         {open ? "✕" : "💬"}
       </button>
 
@@ -85,6 +105,7 @@ export default function ChatWidget({ onCartUpdate }: ChatWidgetProps) {
                   alignSelf: m.role === "user" ? "flex-end" : "flex-start",
                   background: m.role === "user" ? "#2563eb" : "#f1f5f9",
                   color: m.role === "user" ? "white" : "#0f172a",
+                  whiteSpace: "pre-line",
                 }}
               >
                 {m.content}
