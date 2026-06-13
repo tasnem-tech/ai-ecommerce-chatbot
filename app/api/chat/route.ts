@@ -20,20 +20,28 @@ export async function POST(req: NextRequest) {
 
     const text = String(message || "").toLowerCase();
 
-    let reply = "I can help you browse products, add items to cart, remove items, or checkout.";
+    let reply =
+      "I can help you browse products, add items to cart, remove items, or checkout.";
     let action = "none";
     let responseExtras: any = {};
 
-    const matchedProduct = PRODUCTS.find((p) =>
-      text.includes(p.name.toLowerCase()) ||
-      text.includes(p.category.toLowerCase())
+    const matchedProduct = PRODUCTS.find(
+      (p) =>
+        text.includes(p.name.toLowerCase()) ||
+        text.includes(p.category.toLowerCase())
     );
 
-    const matchedSize =
-      ["XXL", "XL", "L", "M", "S"].find((s) => text.includes(` ${s.toLowerCase()}`)) ||
-      "M";
+    const matchedSize = (
+      ["XXL", "XL", "L", "M", "S"].find((s) =>
+        text.includes(` ${s.toLowerCase()}`)
+      ) || "M"
+    ) as any;
 
-    if (text.includes("show") || text.includes("browse") || text.includes("products")) {
+    if (
+      text.includes("show") ||
+      text.includes("browse") ||
+      text.includes("products")
+    ) {
       action = "browse";
       responseExtras.products = PRODUCTS.slice(0, 5);
       reply = "Here are some products you may like.";
@@ -107,7 +115,10 @@ export async function POST(req: NextRequest) {
 
       const cart = await Cart.findOne({ userId });
       const items = cart?.items ?? [];
-      const total = items.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+      const total = items.reduce(
+        (s: number, i: any) => s + i.price * i.quantity,
+        0
+      );
 
       responseExtras.cart = items;
       responseExtras.total = total;
@@ -115,10 +126,16 @@ export async function POST(req: NextRequest) {
       reply =
         items.length === 0
           ? "Your cart is empty."
-          : `You have ${items.length} item(s) in your cart. Total: £${total.toFixed(2)}.`;
+          : `You have ${items.length} item(s) in your cart. Total: £${total.toFixed(
+              2
+            )}.`;
     }
 
-    if (text.includes("checkout") || text.includes("place order") || text.includes("order")) {
+    if (
+      text.includes("checkout") ||
+      text.includes("place order") ||
+      text.includes("order")
+    ) {
       action = "checkout";
 
       const cart = await Cart.findOne({ userId });
@@ -140,7 +157,11 @@ export async function POST(req: NextRequest) {
         cart.items = [];
         await cart.save();
 
-        reply = `Order placed successfully. Your order ID is ${order._id.toString().slice(-8).toUpperCase()}. Total: £${total.toFixed(2)}.`;
+        reply = `Order placed successfully. Your order ID is ${order._id
+          .toString()
+          .slice(-8)
+          .toUpperCase()}. Total: £${total.toFixed(2)}.`;
+
         responseExtras.orderId = order._id;
         responseExtras.total = total;
       }
@@ -169,6 +190,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[/api/chat]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
